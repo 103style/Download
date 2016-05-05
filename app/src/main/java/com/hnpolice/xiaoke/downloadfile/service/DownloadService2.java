@@ -11,32 +11,37 @@ import android.util.Log;
 import com.hnpolice.xiaoke.downloadfile.bean.FileInfo;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * create by luoxiaoke on 2016/4/29 15:25.
- * use for  单线程 下载服务
+ * use for 多线程 下载服务
  */
-public class DownloadService extends Service {
+public class DownloadService2 extends Service {
 
-    private static final String TAG = "DownloadService";
+    public static final int runThreadCount = 3;
+
+    private static final String TAG = "DownloadService2";
     //初始化
-    private static final int MSG_INIT = 0;
+    private static final int MSG_INIT = 0x2;
     //开始下载
-    public static final String ACTION_START = "ACTION_START";
+    public static final String ACTION_START = "ACTION_START_2";
     //暂停下载
-    public static final String ACTION_PAUSE = "ACTION_PAUSE";
+    public static final String ACTION_PAUSE = "ACTION_PAUSE_2";
     //结束下载
-    public static final String ACTION_FINISHED = "ACTION_FINISHED";
+    public static final String ACTION_FINISHED = "ACTION_FINISHED_2";
     //更新UI
-    public static final String ACTION_UPDATE = "ACTION_UPDATE";
+    public static final String ACTION_UPDATE = "ACTION_UPDATE_2";
     //下载路径
-    public static final String DOWNLOAD_PATH = Environment.getExternalStorageDirectory().getAbsolutePath() + "/downloads/";
+    public static final String DOWNLOAD_PATH = Environment.getExternalStorageDirectory().getAbsolutePath() + "/downloads2/";
 
-    private DownloadTask mDownloadTask = null;
+    //下载任务集合
+    private Map<Integer, DownloadTask2> tasks = new LinkedHashMap<>();
+
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -49,8 +54,11 @@ public class DownloadService extends Service {
         } else if (ACTION_PAUSE.equals(intent.getAction())) {
             FileInfo fileInfo = (FileInfo) intent.getSerializableExtra("fileinfo");
             Log.e(TAG, "onStartCommand:ACTION_PAUSE- " + fileInfo.toString());
-            if (mDownloadTask != null) {
-                mDownloadTask.isPause = true;
+            //从集合在取出下载任务
+            DownloadTask2 task2 = tasks.get(fileInfo.getId());
+            if (task2 != null) {
+                //停止下载任务
+                task2.isPause = true;
             }
 
         }
@@ -72,8 +80,10 @@ public class DownloadService extends Service {
                     FileInfo fileinfo = (FileInfo) msg.obj;
                     Log.e("mHandler--fileinfo:", fileinfo.toString());
                     //启动下载任务
-                    mDownloadTask = new DownloadTask(DownloadService.this, fileinfo);
-                    mDownloadTask.download();
+                    DownloadTask2 downloadTask2 = new DownloadTask2(DownloadService2.this, fileinfo, runThreadCount);
+                    downloadTask2.download();
+                    //将下载任务添加到集合中
+                    tasks.put(fileinfo.getId(), downloadTask2);
                     break;
             }
         }
@@ -91,8 +101,8 @@ public class DownloadService extends Service {
 
         @Override
         public void run() {
-            HttpURLConnection conn = null;
-            RandomAccessFile raf = null;
+            HttpURLConnection conn ;
+            RandomAccessFile raf ;
             try {
                 //连接网络文件
                 URL url = new URL(tFileInfo.getUrl());
@@ -111,7 +121,9 @@ public class DownloadService extends Service {
                 }
                 File dir = new File(DOWNLOAD_PATH);
                 if (!dir.exists()) {
-                    dir.mkdir();
+                    if (!dir.mkdir()){
+                       return;
+                    }
                 }
                 //在本地创建文件
                 File file = new File(dir, tFileInfo.getFileName());
@@ -121,18 +133,11 @@ public class DownloadService extends Service {
                 tFileInfo.setLength(length);
                 Log.e("tFileInfo.getLength==", tFileInfo.getLength() + "");
                 mHandler.obtainMessage(MSG_INIT, tFileInfo).sendToTarget();
+
+                raf.close();
+                conn.disconnect();
             } catch (Exception e) {
                 e.printStackTrace();
-            } finally {
-                try {
-                    if (conn != null && raf != null) {
-                        raf.close();
-                        conn.disconnect();
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
             }
         }
     }

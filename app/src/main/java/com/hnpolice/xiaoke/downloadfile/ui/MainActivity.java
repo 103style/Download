@@ -26,9 +26,10 @@ public class MainActivity extends AppCompatActivity {
     @InjectView(R.id.progressBar)
     ProgressBar progressBar;
 
-
     String url;
     FileInfo fileInfo;
+    @InjectView(R.id.pro_text)
+    TextView proText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void init() {
+        proText.setVisibility(View.VISIBLE);
         progressBar.setMax(100);
         //创建文件信息对象
         url = "http://dldir1.qq.com/weixin/android/weixin6316android780.apk";
@@ -58,8 +60,9 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (DownloadService.ACTION_UPDATE.equals(intent.getAction())) {
-                int finished = intent.getIntExtra("finished",0);
+                int finished = intent.getIntExtra("finished", 0);
                 progressBar.setProgress(finished);
+                proText.setText(new StringBuffer().append(finished).append("%"));
             }
         }
     };

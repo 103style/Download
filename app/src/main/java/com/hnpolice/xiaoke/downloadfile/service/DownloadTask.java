@@ -17,7 +17,7 @@ import java.util.List;
 
 /**
  * create by luoxiaoke on 2016/4/29 16:45.
- * use for 下载任务类
+ * use for 单线程下载任务类
  */
 public class DownloadTask {
     private Context mContext = null;
@@ -94,6 +94,14 @@ public class DownloadTask {
                     int len = -1;
                     long time = System.currentTimeMillis();
                     while ((len = is.read(buffer)) != -1) {
+
+                        //下载暂停时，保存进度
+                        if (isPause) {
+                            Log.e("mfinished==", mFinished + "");
+                            mThreadDAO.updateThread(mFileInfo.getUrl(), mFileInfo.getId(), mFinished);
+                            return;
+                        }
+
                         //写入文件
                         raf.write(buffer, 0, len);
                         //把下载进度发送广播给Activity
@@ -104,12 +112,7 @@ public class DownloadTask {
                             mContext.sendBroadcast(intent);
                             Log.e(" mFinished percent===", mFinished * 100 / mFileInfo.getLength() + "");
                         }
-                        //下载暂停时，保存进度
-                        if (isPause) {
-                            Log.e("mfinished==", mFinished + "");
-                            mThreadDAO.updateThread(mFileInfo.getUrl(), mFileInfo.getId(), mFinished);
-                            return;
-                        }
+
                     }
 
                     intent.putExtra("finished",100);
